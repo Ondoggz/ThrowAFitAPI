@@ -24,10 +24,6 @@ router.get("/bottoms", (req, res) => {
   res.send("👖 This is the Bottoms category");
 });
 
-router.get("/belts", (req, res) => {
-  res.send("🧢 This is the Belts category");
-});
-
 router.get("/shoes", (req, res) => {
   res.send("👟 This is the Shoes category");
 });

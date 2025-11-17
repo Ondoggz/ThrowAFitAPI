@@ -13,19 +13,19 @@ router.get("/", (req, res) => {
 
 // Category routes
 router.get("/accessories", (req, res) => {
-  res.send("👜 This is the Accessories category");
+  res.send("This is the Accessories category");
 });
 
 router.get("/tops", (req, res) => {
-  res.send("👕 This is the Tops category");
+  res.send("This is the Tops category");
 });
 
 router.get("/bottoms", (req, res) => {
-  res.send("👖 This is the Bottoms category");
+  res.send("This is the Bottoms category");
 });
 
 router.get("/shoes", (req, res) => {
-  res.send("👟 This is the Shoes category");
+  res.send("This is the Shoes category");
 });
 
 export default router;

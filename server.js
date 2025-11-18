@@ -1,29 +1,51 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import uploadRoute from "./routes/uploadRoutes.js";
+import connectDB from "./config/db.js"; // Assuming you still need your DB connection
+import itemRoutes from "./routes/itemRoutes.js"; // Assuming you still use this route
+import uploadRoute from "./routes/uploadRoutes.js"; // Correct path to your upload routes
+import { v2 as cloudinary } from "cloudinary"; // Cloudinary import (already configured globally)
 
+// Load environment variables
 dotenv.config();
+
+// Configure Cloudinary globally
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Initialize database connection (if applicable)
+connectDB();
 
 const app = express();
 
-// CORS (uses Render environment variable)
+// --- 🌐 CORS Configuration ---
+// This is the correct and robust way to handle CORS.
+const allowedOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000'; 
+console.log("Allowed CORS origin:", allowedOrigin);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN,
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  origin: allowedOrigin,   
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Include OPTIONS for preflight requests
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-app.use(express.json());
+// --- Middleware ---
+app.use(express.json()); // Body parser for JSON payloads
 
+// --- Routes ---
+app.use("/api/items", itemRoutes); 
 app.use("/api/upload", uploadRoute);
 
+// Test route
 app.get("/", (req, res) => {
-  res.send("Server is running.");
+  res.send("Throw-A-Fit API is running.");
 });
 
-const port = process.env.PORT || 10000;
+const PORT = process.env.PORT || 5000;
 
-app.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });

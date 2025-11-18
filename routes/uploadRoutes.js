@@ -1,61 +1,58 @@
 import express from "express";
 import multer from "multer";
-import { v2 as cloudinary } from "cloudinary"; // Import Cloudinary instance
-import fs from "fs/promises"; // For deleting the local file later
-import axios from "axios"; // HTTP client for remove.bg API call
+import { v2 as cloudinary } from "cloudinary"; // Assuming this is the configured instance
+import axios from "axios"; 
+import fs from "fs/promises"; // Still needed for potential future use, but removed from logic
 
 const router = express.Router();
 
-// 1. Configure Multer for DISK STORAGE (temporary local storage)
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // Use a temporary folder. Make sure this folder exists on Render/your server.
-        cb(null, 'uploads/'); 
-    },
-    filename: (req, file, cb) => {
-        // Use the original name with a timestamp to ensure uniqueness
-        cb(null, Date.now() + '-' + file.originalname);
-    }
-});
-const upload = multer({ storage });
+// 1. 🟢 FIX: Use Multer Memory Storage
+// This stores the file in req.file.buffer, avoiding the Render disk error (ENOENT).
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    // Optional: Add file size limit for early rejection
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+}); 
 
 // 2. The combined route handler
 router.post("/", upload.single("image"), async (req, res) => {
     
-    if (!req.file) {
-        return res.status(400).json({ message: "No file received." });
+    // Check for Multer/File Errors before processing
+    if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ message: "❌ No file received or buffer missing." });
     }
 
-    const localFilePath = req.file.path;
+    const fileBuffer = req.file.buffer;
     let removeBgApiResult;
     let cloudinaryResult;
 
     try {
-        // 🔴 STEP 1 & 2: Send to remove.bg API
+        // --- STEP 1 & 2: Send to remove.bg API ---
         removeBgApiResult = await axios({
             method: 'post',
             url: 'https://api.remove.bg/v1.0/removebg',
             headers: {
-                // Ensure REMOVE_BG_API_KEY is set in your .env or Render variables
+                // 🛑 CRITICAL: Check this environment variable on Render
                 'X-Api-Key': process.env.REMOVE_BG_API_KEY, 
             },
             data: {
-                image_file_b64: req.file.buffer.toString('base64'), // Send file data as Base64
+                // Send file data as Base64 string for the API
+                image_file_b64: fileBuffer.toString('base64'), 
                 size: 'auto',
-                type: 'product', // Optional: Optimizes removal for product images
+                type: 'product',
             },
-            responseType: 'arraybuffer' // We expect binary data (the processed image)
+            responseType: 'arraybuffer' // Expects binary image data back
         });
 
-        // 🔴 STEP 3 & 4: Upload processed image data to Cloudinary
-        // Convert the binary response buffer into a Base64 string for Cloudinary upload
+        // --- STEP 3 & 4: Upload processed image data to Cloudinary ---
+        
+        // Convert the binary response buffer into a Data URI for Cloudinary
         const processedImageBase64 = Buffer.from(removeBgApiResult.data).toString('base64');
         const dataUri = `data:image/png;base64,${processedImageBase64}`;
 
         cloudinaryResult = await cloudinary.uploader.upload(dataUri, {
             folder: "ThrowAFit",
-            // Optional: Specify format since remove.bg output is usually PNG (for transparency)
-            format: 'png', 
+            format: 'png', // Use PNG to preserve transparency
         });
 
         // 5. Success Response
@@ -67,21 +64,20 @@ router.post("/", upload.single("image"), async (req, res) => {
     } catch (error) {
         console.error("Upload/RemoveBG Error:", error.message);
         
-        // Handle specific remove.bg errors
+        // Attempt to log specific error response from remove.bg
         if (error.response && error.response.data) {
-            console.error("remove.bg API Error:", Buffer.from(error.response.data).toString('utf8'));
+            const apiError = Buffer.from(error.response.data).toString('utf8');
+            console.error("remove.bg API Detail:", apiError);
+            
+            // Send a client-friendly error
+            return res.status(error.response.status || 500).json({ 
+                message: `❌ API Error during processing. Details: ${apiError.slice(0, 100)}...` 
+            });
         }
 
-        res.status(500).json({ message: "❌ Failed to process or upload image." });
+        // Generic catch-all error
+        return res.status(500).json({ message: "❌ Failed to process or upload image due to internal server error." });
 
-    } finally {
-        // 6. Cleanup: Delete the temporary local file
-        try {
-            await fs.unlink(localFilePath);
-            console.log(`Cleaned up local file: ${localFilePath}`);
-        } catch (cleanupError) {
-            console.error("Cleanup failed:", cleanupError.message);
-        }
     }
 });
 

@@ -6,14 +6,16 @@ import itemRoutes from "./routes/itemRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import { v2 as cloudinary } from "cloudinary";
 
+// 1. Load environment variables first
+dotenv.config();
+console.log("MONGO_URI:", process.env.MONGO_URI);
+
+// 2. Configure Cloudinary using loaded environment variables
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-
-dotenv.config();
-console.log("MONGO_URI:", process.env.MONGO_URI);
 
 connectDB();
 

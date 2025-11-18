@@ -7,28 +7,25 @@ dotenv.config();
 
 const app = express();
 
-// 🔥 1. ENABLE CORS FOR ALL ROUTES (MUST BE AT THE TOP)
+// 🌐 1. CORS (uses Render environment variable)
+console.log("Allowed CORS origin:", process.env.CORS_ORIGIN);
+
 app.use(cors({
-  origin: ["https://serene-eclair-9ae22f.netlify.app", "*"],
-  methods: "GET,POST,PUT,DELETE",
-  allowedHeaders: "Content-Type,Authorization",
+  origin: process.env.CORS_ORIGIN,   // <-- uses your Render variable
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-// Optional manual CORS header (also safe)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://serene-eclair-9ae22f.netlify.app");
-  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
-  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization");
-  next();
-});
+// ❌ REMOVE manual headers completely (this breaks CORS)
+// Do NOT include any Access-Control-Allow-Origin manually
 
-// 🔥 2. Body parser AFTER CORS
+// 📦 2. Body parser
 app.use(express.json());
 
-// 🔥 3. Your routes AFTER CORS
+// 📁 3. Routes
 app.use("/api/upload", uploadRoute);
 
-// Health check
+// Test route
 app.get("/", (req, res) => {
   res.send("Server is running.");
 });

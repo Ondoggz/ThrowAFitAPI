@@ -1,31 +1,23 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import uploadRoute from ".uploadRoutes.js";
+import uploadRoute from "./routes/upload.js";
 
 dotenv.config();
 
 const app = express();
 
-// 🌐 1. CORS (uses Render environment variable)
-console.log("Allowed CORS origin:", process.env.CORS_ORIGIN);
-
+// CORS (uses Render environment variable)
 app.use(cors({
-  origin: process.env.CORS_ORIGIN,   // <-- uses your Render variable
+  origin: process.env.CORS_ORIGIN,
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-// ❌ REMOVE manual headers completely (this breaks CORS)
-// Do NOT include any Access-Control-Allow-Origin manually
-
-// 📦 2. Body parser
 app.use(express.json());
 
-// 📁 3. Routes
 app.use("/api/upload", uploadRoute);
 
-// Test route
 app.get("/", (req, res) => {
   res.send("Server is running.");
 });

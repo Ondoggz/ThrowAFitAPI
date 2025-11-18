@@ -6,59 +6,53 @@ import itemRoutes from "./routes/itemRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import { v2 as cloudinary } from "cloudinary";
 
-// 1. Load environment variables
+// Load env FIRST
 dotenv.config();
-console.log("MONGO_URI:", process.env.MONGO_URI);
 
-// 2. Cloudinary configuration
+const app = express();
+
+// ----------------------------
+// 🔥 CORS MUST BE THE FIRST MIDDLEWARE
+// ----------------------------
+app.use(cors({
+  origin: [
+    "https://serene-eclair-9ae22f.netlify.app",
+    "http://localhost:5173",
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
+
+// ----------------------------
+// THEN connect Cloudinary/Mongo
+// ----------------------------
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// 3. Connect to MongoDB
 connectDB();
 
-const app = express();
+// ----------------------------
+// DO NOT PUT express.json() HERE
+// ----------------------------
 
-// ---------------------
-// 🔐 CORS CONFIG
-// ---------------------
-
-const corsOptions = {
-  origin: [
-    "https://serene-eclair-9ae22f.netlify.app", // your deployed frontend
-    "http://localhost:5173",                   // local development
-  ],
-  credentials: true,
-};
-
-app.use(cors(corsOptions));
-
-// ---------------------
-// ⚠️ IMPORTANT: DO NOT put express.json() here
-// It breaks multipart/form-data uploads
-// ---------------------
-
-// ---------------------
-// 📌 ROUTES
-// ---------------------
+// ----------------------------
+// ROUTES
+// ----------------------------
 app.use("/api/items", itemRoutes);
 app.use("/api/upload", uploadRoutes);
 
-// Only parse JSON AFTER routes that handle file uploads
+// JSON parser AFTER upload route
 app.use(express.json());
 
-// Root route
+// Root check
 app.get("/", (req, res) => {
   res.send("Throw-A-Fit API is running");
 });
 
-// ---------------------
-// 🚀 START SERVER
-// ---------------------
+// Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT}`)
-);
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

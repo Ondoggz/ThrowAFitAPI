@@ -3,7 +3,9 @@ import mongoose from "mongoose";
 const connectDB = async () => {
   try {
     if (!process.env.MONGO_URI) {
-      throw new Error("MONGO_URI is not defined. Make sure your .env file exists and dotenv.config() is called first.");
+      throw new Error(
+        "MONGO_URI is not defined. Make sure your .env file exists and dotenv.config() is called first."
+      );
     }
 
     const conn = await mongoose.connect(process.env.MONGO_URI, {
@@ -13,7 +15,9 @@ const connectDB = async () => {
 
     console.log(`✅ MongoDB connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error(`❌ Error: ${error.message}`);
+    console.error(`❌ MongoDB connection error: ${error.message}`);
+    // Optionally, retry a few times instead of exiting immediately
+    // For now, exit process
     process.exit(1);
   }
 };

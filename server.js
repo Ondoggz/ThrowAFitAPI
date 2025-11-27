@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import itemRoutes from "./routes/itemRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 import { v2 as cloudinary } from "cloudinary";
 
 dotenv.config();
@@ -59,6 +60,7 @@ app.use(express.json());
 // --- Routes ---
 app.use("/api/items", itemRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/auth", authRoutes);
 
 // --- Root Test Route ---
 app.get("/", (req, res) => {

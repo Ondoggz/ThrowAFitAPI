@@ -1,8 +1,10 @@
 import Item from "../models/Item.js";
 
-export const getItems = async (req, res) => {
+// Get items, optionally filtered by category
+export const getItems = async (req, res, category) => {
   try {
-    const items = await Item.find();
+    const filter = category ? { category } : {};
+    const items = await Item.find(filter);
     res.json(items);
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -1,22 +1,16 @@
 import express from "express";
 import { getItems } from "../controllers/itemController.js";
+import { auth } from "./authRoutes.js"; // ensure auth middleware
 
 const router = express.Router();
 
-// 🛑 Helper function for category filtering (defined here for simplicity)
-function getItemsByCategory(req, res, category) {
-    getItems(req, res, category);
-}
+// Fetch all items for logged-in user
+router.get("/", auth, getItems);
 
-// GET all items (No Category Filter)
-router.get("/", getItems);
-
-// ❌ The POST / route is removed as item creation with uploads is handled by /api/upload
-
-// GET items by category
-router.get("/accessories", (req, res) => getItemsByCategory(req, res, "accessories"));
-router.get("/tops", (req, res) => getItemsByCategory(req, res, "tops"));
-router.get("/bottoms", (req, res) => getItemsByCategory(req, res, "bottoms"));
-router.get("/shoes", (req, res) => getItemsByCategory(req, res, "shoes"));
+// Fetch by category for logged-in user
+router.get("/accessories", auth, (req, res) => getItems(req, res, "accessories"));
+router.get("/tops", auth, (req, res) => getItems(req, res, "tops"));
+router.get("/bottoms", auth, (req, res) => getItems(req, res, "bottoms"));
+router.get("/shoes", auth, (req, res) => getItems(req, res, "shoes"));
 
 export default router;

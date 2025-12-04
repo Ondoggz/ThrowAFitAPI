@@ -6,7 +6,8 @@ import itemRoutes from "./routes/itemRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import { v2 as cloudinary } from "cloudinary";
-import fileUpload from "express-fileupload";
+import multer from "multer";
+import path from "path";
 
 dotenv.config();
 
@@ -45,16 +46,24 @@ app.use(
   })
 );
 
-// --- Middleware ---
+// --- Body Parser ---
 app.use(express.json());
-app.use(
-  fileUpload({
-    useTempFiles: true,
-    tempFileDir: "/tmp/",
-  })
-);
+
+// --- Multer Setup ---
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(".", "tmp")); // temporary folder
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}${ext}`);
+  },
+});
+
+export const upload = multer({ storage });
 
 // --- Routes ---
+// For uploadRoutes, remember to use `upload.single("image")` in your route
 app.use("/api/items", itemRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/auth", authRoutes);

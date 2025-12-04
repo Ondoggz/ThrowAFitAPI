@@ -1,16 +1,21 @@
 import express from "express";
 import { getItems } from "../controllers/itemController.js";
-import { auth } from "./authRoutes.js"; // 🔹 auth middleware
+import verifyToken from "../middleware/verifyToken.js"; // JWT middleware
 
 const router = express.Router();
 
-// GET all items for logged-in user
-router.get("/", auth, getItems);
+// Helper function for category filtering
+function getItemsByCategory(req, res, category) {
+    getItems(req, res, category);
+}
 
-// GET items by category for logged-in user
-router.get("/accessories", auth, (req, res) => getItems(req, res, "accessories"));
-router.get("/tops", auth, (req, res) => getItems(req, res, "tops"));
-router.get("/bottoms", auth, (req, res) => getItems(req, res, "bottoms"));
-router.get("/shoes", auth, (req, res) => getItems(req, res, "shoes"));
+// Secure all GET requests with verifyToken
+router.get("/", verifyToken, getItems);
+
+// Category-specific routes
+router.get("/accessories", verifyToken, (req, res) => getItemsByCategory(req, res, "accessories"));
+router.get("/tops", verifyToken, (req, res) => getItemsByCategory(req, res, "tops"));
+router.get("/bottoms", verifyToken, (req, res) => getItemsByCategory(req, res, "bottoms"));
+router.get("/shoes", verifyToken, (req, res) => getItemsByCategory(req, res, "shoes"));
 
 export default router;

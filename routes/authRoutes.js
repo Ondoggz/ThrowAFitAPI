@@ -66,12 +66,40 @@ router.post("/login", async (req, res) => {
 // -------- GET CURRENT USER --------
 router.get("/me", verifyToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password"); // exclude password
+    const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ msg: "User not found" });
     res.json(user);
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Server error fetching user info" });
+  }
+});
+
+// -------- UPDATE USERNAME --------
+router.put("/update-name", verifyToken, async (req, res) => {
+  try {
+    const { newName } = req.body;
+
+    if (!newName || !newName.trim()) {
+      return res.status(400).json({ msg: "New name is required" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { username: newName },
+      { new: true } // return updated user
+    ).select("-password");
+
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    res.json({
+      msg: "Username updated successfully",
+      user,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Server error updating username" });
   }
 });
 

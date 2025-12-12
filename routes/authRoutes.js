@@ -84,6 +84,12 @@ router.put("/update-name", verifyToken, async (req, res) => {
       return res.status(400).json({ msg: "New name is required" });
     }
 
+    // Check if the new username is already taken by another user
+    const existingUser = await User.findOne({ username: newName });
+    if (existingUser && existingUser._id.toString() !== req.user.id) {
+      return res.status(400).json({ msg: "Username already taken" });
+    }
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { username: newName },

@@ -48,11 +48,10 @@ export const deleteItem = async (req, res) => {
   }
 
   try {
-    // Ensure item belongs to the logged-in user
-    const item = await Item.findOne({ _id: itemId, user: req.user.id });
-    if (!item) return res.status(404).json({ message: "Item not found" });
+    // Ensure item belongs to the logged-in user and delete it
+    const deletedItem = await Item.findOneAndDelete({ _id: itemId, user: new mongoose.Types.ObjectId(req.user.id) });
+    if (!deletedItem) return res.status(404).json({ message: "Item not found" });
 
-    await item.remove();
     res.status(200).json({ message: "Item deleted successfully" });
   } catch (err) {
     console.error("Delete item error:", err);

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Item from "../models/Item.js";
 
-// Get items (optionally by category) for the logged-in user
+// ────────── Get items (optionally by category) ──────────
 export const getItems = async (req, res, category) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -16,7 +16,7 @@ export const getItems = async (req, res, category) => {
   }
 };
 
-// Create a new item for the logged-in user
+// ────────── Create a new item ──────────
 export const createItem = async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -33,5 +33,24 @@ export const createItem = async (req, res) => {
     res.status(201).json(newItem);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+};
+
+// ────────── Delete an item ──────────
+export const deleteItem = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    const itemId = req.params.id;
+
+    // Make sure the item belongs to the logged-in user
+    const item = await Item.findOne({ _id: itemId, user: req.user.id });
+    if (!item) return res.status(404).json({ message: "Item not found" });
+
+    await item.remove();
+    res.status(200).json({ message: "Item deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting item:", err);
+    res.status(500).json({ message: "Server error deleting item" });
   }
 };

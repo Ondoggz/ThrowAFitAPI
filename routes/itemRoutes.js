@@ -1,5 +1,5 @@
 import express from "express";
-import { getItems } from "../controllers/itemController.js";
+import { getItems, deleteItem } from "../controllers/itemController.js";
 import verifyToken from "../middleware/verifyToken.js";
 
 const router = express.Router();
@@ -8,7 +8,6 @@ const router = express.Router();
 router.get("/user", verifyToken, async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    // getItems uses req.user internally
     await getItems(req, res);
   } catch (err) {
     console.error("Error fetching user items:", err);
@@ -24,5 +23,19 @@ router.get("/accessories", verifyToken, async (req, res) => getItems(req, res, "
 
 // ────────── Default route: all items ──────────
 router.get("/", verifyToken, async (req, res) => getItems(req, res));
+
+/* ────────── DELETE ITEM ──────────
+   DELETE /api/items/:id
+   Deletes an item by ID for the logged-in user
+*/
+router.delete("/:id", verifyToken, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    await deleteItem(req, res);
+  } catch (err) {
+    console.error("Error deleting item:", err);
+    res.status(500).json({ message: "Server error deleting item" });
+  }
+});
 
 export default router;

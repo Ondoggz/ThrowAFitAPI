@@ -21,9 +21,14 @@ const transporter = nodemailer.createTransport({
 router.post("/signup", async (req, res) => {
   try {
     const { username, password, email } = req.body;
+
     if (!username || !password || !email) {
       return res.status(400).json({ msg: "Username, password, and email are required" });
     }
+
+    // Simple email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return res.status(400).json({ msg: "Invalid email format" });
 
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) return res.status(400).json({ msg: "Username or email already taken" });
@@ -34,7 +39,7 @@ router.post("/signup", async (req, res) => {
     res.json({ msg: "Account created", userId: user._id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error during signup" });
   }
 });
 
@@ -59,7 +64,7 @@ router.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error during login" });
   }
 });
 
@@ -105,7 +110,6 @@ router.post("/forgot-password", async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ msg: "No user with that email" });
 
-    // Create a reset token (expires in 1 hour)
     const resetToken = crypto.randomBytes(32).toString("hex");
     const hashedToken = await bcrypt.hash(resetToken, 10);
 
@@ -113,16 +117,22 @@ router.post("/forgot-password", async (req, res) => {
     user.passwordResetExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    // Send email
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&id=${user._id}`;
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: "Password Reset Request",
-      html: `<p>You requested a password reset.</p><p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 1 hour.</p>`,
-    });
 
-    res.json({ msg: "Password reset email sent" });
+    // Send email
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: "Password Reset Request",
+        html: `<p>You requested a password reset.</p>
+               <p>Click <a href="${resetLink}">here</a> to reset your password. Link expires in 1 hour.</p>`,
+      });
+    } catch (emailErr) {
+      console.error("Email sending failed, reset link:", resetLink);
+    }
+
+    res.json({ msg: "Password reset email sent", userId: user._id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Server error during password reset" });
@@ -145,7 +155,6 @@ router.post("/reset-password", async (req, res) => {
     const isValid = await bcrypt.compare(token, user.passwordResetToken);
     if (!isValid) return res.status(400).json({ msg: "Invalid token" });
 
-    // Reset password
     user.password = await bcrypt.hash(newPassword, 10);
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;

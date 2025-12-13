@@ -1,25 +1,35 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
 import User from "../models/userModel.js";
 import verifyToken from "../middleware/verifyToken.js";
 
 const router = express.Router();
 
+// Configure nodemailer
+const transporter = nodemailer.createTransport({
+  service: "Gmail", // or your email provider
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
 // -------- SIGNUP --------
 router.post("/signup", async (req, res) => {
   try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ msg: "Username and password are required" });
+    const { username, password, email } = req.body;
+    if (!username || !password || !email) {
+      return res.status(400).json({ msg: "Username, password, and email are required" });
     }
 
-    const existing = await User.findOne({ username });
-    if (existing) return res.status(400).json({ msg: "Username already taken" });
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) return res.status(400).json({ msg: "Username or email already taken" });
 
     const hashed = await bcrypt.hash(password, 10);
-    const user = await User.create({ username, password: hashed });
+    const user = await User.create({ username, password: hashed, email });
 
     res.json({ msg: "Account created", userId: user._id });
   } catch (err) {
@@ -32,10 +42,7 @@ router.post("/signup", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ msg: "Username and password are required" });
-    }
+    if (!username || !password) return res.status(400).json({ msg: "Username and password are required" });
 
     const user = await User.findOne({ username });
     if (!user) return res.status(400).json({ msg: "User not found" });
@@ -43,19 +50,12 @@ router.post("/login", async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ msg: "Incorrect password" });
 
-    const token = jwt.sign(
-      { id: user._id, username: user.username },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     res.json({
       msg: "Login success",
       token,
-      user: {
-        _id: user._id,
-        username: user.username,
-      },
+      user: { _id: user._id, username: user.username, email: user.email },
     });
   } catch (err) {
     console.error(err);
@@ -79,33 +79,82 @@ router.get("/me", verifyToken, async (req, res) => {
 router.put("/update-name", verifyToken, async (req, res) => {
   try {
     const { username: newName } = req.body;
+    if (!newName || !newName.trim()) return res.status(400).json({ msg: "New name is required" });
 
-    if (!newName || !newName.trim()) {
-      return res.status(400).json({ msg: "New name is required" });
-    }
-
-    // Check if the new username is already taken by another user
     const existingUser = await User.findOne({ username: newName });
     if (existingUser && existingUser._id.toString() !== req.user.id) {
       return res.status(400).json({ msg: "Username already taken" });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { username: newName },
-      { new: true } // return updated user
-    ).select("-password");
-
+    const user = await User.findByIdAndUpdate(req.user.id, { username: newName }, { new: true }).select("-password");
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    res.json({
-      msg: "Username updated successfully",
-      user,
-    });
-
+    res.json({ msg: "Username updated successfully", user });
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Server error updating username" });
+  }
+});
+
+// -------- FORGOT PASSWORD --------
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ msg: "Email is required" });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ msg: "No user with that email" });
+
+    // Create a reset token (expires in 1 hour)
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = await bcrypt.hash(resetToken, 10);
+
+    user.passwordResetToken = hashedToken;
+    user.passwordResetExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
+
+    // Send email
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&id=${user._id}`;
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Password Reset Request",
+      html: `<p>You requested a password reset.</p><p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+    });
+
+    res.json({ msg: "Password reset email sent" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Server error during password reset" });
+  }
+});
+
+// -------- RESET PASSWORD --------
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { userId, token, newPassword } = req.body;
+    if (!userId || !token || !newPassword) return res.status(400).json({ msg: "All fields are required" });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(400).json({ msg: "Invalid user" });
+
+    if (!user.passwordResetToken || Date.now() > user.passwordResetExpires) {
+      return res.status(400).json({ msg: "Token expired or invalid" });
+    }
+
+    const isValid = await bcrypt.compare(token, user.passwordResetToken);
+    if (!isValid) return res.status(400).json({ msg: "Invalid token" });
+
+    // Reset password
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    res.json({ msg: "Password reset successful" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Server error during password reset" });
   }
 });
 

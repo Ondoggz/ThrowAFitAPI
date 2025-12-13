@@ -78,7 +78,7 @@ router.get("/me", verifyToken, async (req, res) => {
 // -------- UPDATE USERNAME --------
 router.put("/update-name", verifyToken, async (req, res) => {
   try {
-    const { newName } = req.body;
+    const { username: newName } = req.body;
 
     if (!newName || !newName.trim()) {
       return res.status(400).json({ msg: "New name is required" });

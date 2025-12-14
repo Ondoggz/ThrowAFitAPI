@@ -12,12 +12,12 @@ const router = express.Router();
    EMAIL TRANSPORTER (FIXED)
 ======================= */
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  host: 'smtp.sendgrid.net',
   port: 587,
   secure: false, // TLS
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: 'apikey',
+    pass: process.env.SENDGRID_API_KEY,
   },
   tls: {
     rejectUnauthorized: false, // 👈 FIX for self-signed cert error

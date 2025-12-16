@@ -1,75 +1,70 @@
 import Item from "../models/Item.js";
 
-// Clothing type detection (based on item *name*, not category field)
-const typeRules = {
-  tops: /(top|shirt|hoodie|blouse|jacket|tshirt|sando)/i,
-  bottoms: /(pants|shorts|jeans|skirt|bottom|trousers|joggers)/i,
-  shoes: /(shoes|sneakers|boots|heels|slippers)/i,
-  accessories: /(hat|cap|necklace|bracelet|earrings|ring|bag|accessory)/i
-};
-
-// Helper: check if name contains any selected filter
-const matchesFilter = (name, options) => {
-  const lower = name.toLowerCase();
-
-  if (!options.fullRandom) {
-    if (options.colors?.length) {
-      const colorMatch = options.colors.some(c => lower.includes(c.toLowerCase()));
-      if (!colorMatch) return false;
-    }
-    if (options.patterns?.length) {
-      const patternMatch = options.patterns.some(p => lower.includes(p.toLowerCase()));
-      if (!patternMatch) return false;
-    }
-    if (options.styles?.length) {
-      const styleMatch = options.styles.some(s => lower.includes(s.toLowerCase()));
-      if (!styleMatch) return false;
-    }
-  }
-
-  return true;
-};
-
 export const generateFit = async (req, res) => {
   try {
-    const options = req.body;
+    const options = req.body; // { fullRandom, colors, patterns, styles }
     const userId = req.user.id;
 
     const allItems = await Item.find({ user: userId });
 
-    const buckets = { tops: [], bottoms: [], shoes: [], accessories: [] };
+    // 1️⃣ Categorize by DB category (clean & reliable)
+    const buckets = {
+      tops: allItems.filter(i => i.category === "tops"),
+      bottoms: allItems.filter(i => i.category === "bottoms"),
+      shoes: allItems.filter(i => i.category === "shoes"),
+      accessories: allItems.filter(i => i.category === "accessories"),
+    };
 
-    allItems.forEach(item => {
-      for (const type in typeRules) {
-        if (typeRules[type].test(item.name)) {
-          buckets[type].push(item);
-          break;
-        }
-      }
-    });
+    // 2️⃣ Filter logic using structured fields
+    const matchesFilter = (item) => {
+      if (options.fullRandom) return true;
+
+      if (options.colors?.length && !options.colors.includes(item.color)) return false;
+      if (options.patterns?.length && !options.patterns.includes(item.pattern)) return false;
+      if (options.styles?.length && !options.styles.includes(item.style)) return false;
+
+      return true;
+    };
 
     const filteredBuckets = {};
     for (const type in buckets) {
-      filteredBuckets[type] = buckets[type].filter(item =>
-        matchesFilter(item.name, options)
-      );
+      filteredBuckets[type] = buckets[type].filter(matchesFilter);
     }
 
-    const pickRandom = arr =>
+    // 3️⃣ Random picker
+    const pickRandom = (arr) =>
       arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
 
-    const outfit = {};
-    for (const type of ["tops", "bottoms", "shoes", "accessories"]) {
-      const filtered = filteredBuckets[type];
-      const original = buckets[type];
-
-      outfit[type.slice(0, -1)] =
-        filtered.length
-          ? pickRandom(filtered)
+    // 4️⃣ Build outfit (explicit keys — no string slicing bugs)
+    const outfit = {
+      top:
+        filteredBuckets.tops.length
+          ? pickRandom(filteredBuckets.tops)
           : options.fullRandom
-            ? pickRandom(original)
-            : null;
-    }
+            ? pickRandom(buckets.tops)
+            : null,
+
+      bottom:
+        filteredBuckets.bottoms.length
+          ? pickRandom(filteredBuckets.bottoms)
+          : options.fullRandom
+            ? pickRandom(buckets.bottoms)
+            : null,
+
+      shoes:
+        filteredBuckets.shoes.length
+          ? pickRandom(filteredBuckets.shoes)
+          : options.fullRandom
+            ? pickRandom(buckets.shoes)
+            : null,
+
+      accessory:
+        filteredBuckets.accessories.length
+          ? pickRandom(filteredBuckets.accessories)
+          : options.fullRandom
+            ? pickRandom(buckets.accessories)
+            : null,
+    };
 
     res.json({ outfit });
 

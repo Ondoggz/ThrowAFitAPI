@@ -32,34 +32,43 @@ const matchesFilter = (name, options) => {
 
 export const generateFit = async (req, res) => {
   try {
-    const options = req.body;  // { fullRandom, colors, patterns, styles }
+    const options = req.body;
     const userId = req.user.id;
 
     const allItems = await Item.find({ user: userId });
 
-    // 1️⃣ Categorize all items first
     const buckets = { tops: [], bottoms: [], shoes: [], accessories: [] };
+
     allItems.forEach(item => {
       for (const type in typeRules) {
         if (typeRules[type].test(item.name)) {
           buckets[type].push(item);
+          break;
         }
       }
     });
 
-    // 2️⃣ Apply filter per category
     const filteredBuckets = {};
     for (const type in buckets) {
-      filteredBuckets[type] = buckets[type].filter(item => matchesFilter(item.name, options));
+      filteredBuckets[type] = buckets[type].filter(item =>
+        matchesFilter(item.name, options)
+      );
     }
 
-    // 3️⃣ Random selection with fallback
-    const pickRandom = arr => arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
+    const pickRandom = arr =>
+      arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
 
     const outfit = {};
     for (const type of ["tops", "bottoms", "shoes", "accessories"]) {
-      // pick filtered if exists, else fallback to any in that category
-      outfit[type.slice(0, -1)] = pickRandom(filteredBuckets[type]) || pickRandom(buckets[type]);
+      const filtered = filteredBuckets[type];
+      const original = buckets[type];
+
+      outfit[type.slice(0, -1)] =
+        filtered.length
+          ? pickRandom(filtered)
+          : options.fullRandom
+            ? pickRandom(original)
+            : null;
     }
 
     res.json({ outfit });

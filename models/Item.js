@@ -17,13 +17,13 @@ const itemSchema = new mongoose.Schema(
     // New structured filter fields
     color: {
       type: String,
-      enum: ["black", "white", "red", "blue"],
+      enum: ["black", "white", "red", "blue", "grey", "green", "yellow", "pink"],
       default: null
     },
 
     pattern: {
       type: String,
-      enum: ["plain", "striped", "checkered"],
+      enum: ["plain", "striped", "checkered", "tie-dye", "graphic", "floral", "polka-dot", "camouflage"],
       default: null
     },
 
